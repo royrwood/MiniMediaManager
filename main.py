@@ -2,9 +2,9 @@ from typing import Union
 import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import Qt, QModelIndex, QPersistentModelIndex, QEvent, QSize
+from PySide6.QtCore import Qt, QModelIndex, QPersistentModelIndex, QEvent, QSize, QSettings, QPoint
 from PySide6.QtWidgets import QAbstractItemView
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QMoveEvent, QResizeEvent
 
 # class MyTableView(QtWidgets.QTableView):
 #     def __init__(self, parent=None):
@@ -75,11 +75,32 @@ class MainWindow(QtWidgets.QMainWindow):
         selection_model = self.table.selectionModel()
         selection_model.selectionChanged.connect(self.selection_changed)
 
-        window_size = QGuiApplication.primaryScreen().availableGeometry().size()
-        self.resize(window_size * 0.7)
+        settings = QSettings('MiniMediaManager', 'MiniMediaManager')
+
+        size: QSize = settings.value("size")
+        if size:
+            self.resize(size)
+        else:
+            window_size = QGuiApplication.primaryScreen().availableGeometry().size()
+            self.resize(window_size * 0.7)
+
+        pos: QSize = settings.value("pos")
+        if pos:
+            self.move(pos)  # Does not seem to work on Wayland
 
     def closeEvent(self, event):
         print('Main window closing!')
+        settings = QSettings('MiniMediaManager', 'MiniMediaManager')
+        settings.setValue("pos", self.pos())
+        settings.setValue("size", self.size())
+
+    # def moveEvent(self, event: QMoveEvent):
+    #     print("moveEvent: x=`{}`, y=`{}`".format(event.pos().x(), event.pos().y()))
+    #     super().moveEvent(event)
+    #
+    # def resizeEvent(self, event: QResizeEvent):
+    #     print("resizeEvent: w=`{}`, h=`{}`".format(event.size().width(), event.size().height()))
+    #     super().resizeEvent(event)
 
     @staticmethod
     def selection_changed(selected: QtCore.QItemSelection, deselected: QtCore.QItemSelection):
@@ -104,18 +125,3 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     app.exec()
-
-
-# Get/Set window size, position between runs?
-#
-# def readSettings(self):
-#     settings = QSettings("Trolltech", "Application Example")
-#     pos = settings.value("pos", QPoint(200, 200))
-#     size = settings.value("size", QSize(400, 400))
-#     self.resize(size)
-#     self.move(pos)
-#
-# def writeSettings(self):
-#     settings = QSettings("Trolltech", "Application Example")
-#     settings.setValue("pos", self.pos())
-#     settings.setValue("size", self.size())
