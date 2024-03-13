@@ -2,9 +2,9 @@ from typing import Union
 import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6.QtCore import Qt, QModelIndex, QPersistentModelIndex, QEvent
+from PySide6.QtCore import Qt, QModelIndex, QPersistentModelIndex, QEvent, QSize
 from PySide6.QtWidgets import QAbstractItemView
-
+from PySide6.QtGui import QGuiApplication
 
 # class MyTableView(QtWidgets.QTableView):
 #     def __init__(self, parent=None):
@@ -19,14 +19,34 @@ class TableModel(QtCore.QAbstractTableModel):
     def data(self, index: Union[QModelIndex, QPersistentModelIndex], role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
             return self._data[index.row()][index.column()]
+        else:
+            # DisplayRole: Qt.ItemDataRole = ...  # 0x0
+            # DecorationRole: Qt.ItemDataRole = ...  # 0x1
+            # EditRole: Qt.ItemDataRole = ...  # 0x2
+            # ToolTipRole: Qt.ItemDataRole = ...  # 0x3
+            # StatusTipRole: Qt.ItemDataRole = ...  # 0x4
+            # WhatsThisRole: Qt.ItemDataRole = ...  # 0x5
+            # FontRole: Qt.ItemDataRole = ...  # 0x6
+            # TextAlignmentRole: Qt.ItemDataRole = ...  # 0x7
+            # BackgroundRole: Qt.ItemDataRole = ...  # 0x8
+            # ForegroundRole: Qt.ItemDataRole = ...  # 0x9
+            # CheckStateRole: Qt.ItemDataRole = ...  # 0xa
+            # AccessibleTextRole: Qt.ItemDataRole = ...  # 0xb
+            # AccessibleDescriptionRole: Qt.ItemDataRole = ...  # 0xc
+            # SizeHintRole: Qt.ItemDataRole = ...  # 0xd
+            # InitialSortOrderRole: Qt.ItemDataRole = ...  # 0xe
+            # DisplayPropertyRole: Qt.ItemDataRole = ...  # 0x1b
+            # DecorationPropertyRole: Qt.ItemDataRole = ...  # 0x1c
+            # ToolTipPropertyRole: Qt.ItemDataRole = ...  # 0x1d
+            # StatusTipPropertyRole: Qt.ItemDataRole = ...  # 0x1e
+            # WhatsThisPropertyRole: Qt.ItemDataRole = ...  # 0x1f
+            # UserRole: Qt.ItemDataRole = ...  # 0x100
+            pass
 
     def rowCount(self, parent: Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex] = None):
-        # The length of the outer list.
         return len(self._data)
 
     def columnCount(self, parent: Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex] = None):
-        # The following takes the first sub-list, and returns
-        # the length (only works if all rows are an equal length)
         return len(self._data[0])
 
 
@@ -55,13 +75,19 @@ class MainWindow(QtWidgets.QMainWindow):
         selection_model = self.table.selectionModel()
         selection_model.selectionChanged.connect(self.selection_changed)
 
+        window_size = QGuiApplication.primaryScreen().availableGeometry().size()
+        self.resize(window_size * 0.7)
+
+    def closeEvent(self, event):
+        print('Main window closing!')
+
     @staticmethod
     def selection_changed(selected: QtCore.QItemSelection, deselected: QtCore.QItemSelection):
-        indices = ','.join([f'({ix.column()}, {ix.row()})' for ix in selected.indexes()])
-        print(f"selected: {indices}")
+        selected_rows = {ix.row() for ix in selected.indexes()}
+        print(f"selected: {selected_rows}")
 
-        indices = ','.join([f'({ix.column()}, {ix.row()})' for ix in deselected.indexes()])
-        print(f"deselected: {indices}")
+        # deselected_rows = {ix.row() for ix in deselected.indexes()}
+        # print(f"deselected: {deselected_rows}")
 
     def eventFilter(self, watched: QtCore.QObject, event: QEvent):
         if event.type() == QEvent.KeyPress and watched is self.table:
@@ -78,3 +104,18 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     app.exec()
+
+
+# Get/Set window size, position between runs?
+#
+# def readSettings(self):
+#     settings = QSettings("Trolltech", "Application Example")
+#     pos = settings.value("pos", QPoint(200, 200))
+#     size = settings.value("size", QSize(400, 400))
+#     self.resize(size)
+#     self.move(pos)
+#
+# def writeSettings(self):
+#     settings = QSettings("Trolltech", "Application Example")
+#     settings.setValue("pos", self.pos())
+#     settings.setValue("size", self.size())
