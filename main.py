@@ -1,9 +1,123 @@
+from typing import List, Text, Tuple
+import dataclasses
+import json
+import os
+import os.path
+import re
 import sys
 
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QEvent, QSize, QSettings, QModelIndex
-from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QMainWindow, QTableWidgetItem, QApplication, QWidget, QStyledItemDelegate, QStyleOptionViewItem, QSplitter, QTextEdit
-from PySide6.QtGui import QGuiApplication, QPalette, QPen, QPainter
+from PySide6.QtCore import QEvent
+from PySide6.QtCore import QModelIndex
+from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSize
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPalette
+from PySide6.QtGui import QPen
+from PySide6.QtWidgets import QAbstractItemView
+from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QMainWindow
+from PySide6.QtWidgets import QSplitter
+from PySide6.QtWidgets import QStyleOptionViewItem
+from PySide6.QtWidgets import QStyledItemDelegate
+from PySide6.QtWidgets import QTableWidget
+from PySide6.QtWidgets import QTableWidgetItem
+from PySide6.QtWidgets import QTextEdit
+from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QPushButton
+
+
+@dataclasses.dataclass
+class VideoFile:
+    file_path: Text = ''
+    scrubbed_file_name: Text = ''
+    scrubbed_file_year: Text = ''
+    imdb_tt: Text = ''
+    imdb_name: Text = ''
+    imdb_year: Text = ''
+    imdb_rating: Text = ''
+    imdb_genres: List[Text] = None
+    imdb_plot: Text = None
+    is_dirty: bool = False
+
+
+def load_video_file_data(video_file_path: str) -> List[VideoFile]:
+    with open(video_file_path, encoding='utf8') as f:
+        video_files_json = json.load(f)
+
+    video_files_data = list()
+    for video_file_dict in video_files_json:
+        video_file = VideoFile(**video_file_dict)
+        video_files_data.append(video_file)
+
+    return video_files_data
+
+
+def scrub_video_file_name(file_name: Text, filename_metadata_tokens: Text) -> Tuple[Text, Text]:
+    year = ''
+
+    match = re.match(r'((.*)\((\d{4})\))', file_name)
+    if match:
+        file_name = match.group(2)
+        year = match.group(3)
+        scrubbed_file_name_list = file_name.replace('.', ' ').split()
+
+    else:
+        metadata_token_list = [token.lower().strip() for token in filename_metadata_tokens.split(',')]
+        file_name_parts = file_name.replace('.', ' ').split()
+        scrubbed_file_name_list = list()
+
+        for file_name_part in file_name_parts:
+            file_name_part = file_name_part.lower()
+
+            if file_name_part in metadata_token_list:
+                break
+            scrubbed_file_name_list.append(file_name_part)
+
+        if scrubbed_file_name_list:
+            match = re.match(r'\(?(\d{4})\)?', scrubbed_file_name_list[-1])
+            if match:
+                year = match.group(1)
+                del scrubbed_file_name_list[-1]
+
+    scrubbed_file_name = ' '.join(scrubbed_file_name_list).strip()
+    scrubbed_file_name = re.sub(' +', ' ', scrubbed_file_name)
+    return scrubbed_file_name, year
+
+
+def scan_folder(folder_path: Text, ignore_extensions: Text = None, filename_metadata_tokens: Text = None) -> List[VideoFile]:
+    if ignore_extensions is None:
+        ignore_extensions = 'png,jpg,nfo,srt'
+    if filename_metadata_tokens is None:
+        filename_metadata_tokens = '480p,720p,1080p,bluray,hevc,x265,x264,web,webrip,web-dl,repack,proper,extended,remastered,dvdrip,dvd,hdtv,xvid,hdrip,brrip,dvdscr,pdtv'
+
+    ignore_extensions_list = [ext.lower().strip() for ext in ignore_extensions.split(',')]
+
+    video_files = list()
+
+    for dir_path, dirs, files in os.walk(folder_path):
+        for filename in files:
+            print(f'Processing file "{filename}"')
+            file_path = os.path.join(dir_path, filename)
+            filename_parts = os.path.splitext(filename)
+            filename_no_extension = filename_parts[0]
+            filename_extension = filename_parts[1]
+            if filename_extension.startswith('.'):
+                filename_extension = filename_extension[1:]
+
+            if filename_extension.lower() in ignore_extensions_list:
+                continue
+
+            scrubbed_video_file_name, year = scrub_video_file_name(filename_no_extension, filename_metadata_tokens)
+            video_file = VideoFile(file_path=file_path, scrubbed_file_name=scrubbed_video_file_name, scrubbed_file_year=year)
+            video_files.append(video_file)
+
+    return video_files
 
 
 class VerticalLineDelegate(QStyledItemDelegate):
@@ -57,11 +171,31 @@ class MainWindow(QMainWindow):
         self.table_widget.selectionModel().selectionChanged.connect(self.selection_changed)
 
         self.splitter = QSplitter(Qt.Horizontal)
-        self.setCentralWidget(self.splitter)
-
         self.splitter.addWidget(self.table_widget)
         self.splitter.addWidget(self.textedit)
         self.splitter.setSizes([200, 100])
+
+        self.hbox_layout = QHBoxLayout()
+        self.hbox_layout.addStretch(1)
+        self.button_load_json = QPushButton("Load JSON")
+        self.hbox_layout.addWidget(self.button_load_json)
+        self.button_load_json.pressed.connect(self.load_json_clicked)
+        self.hbox_layout.addSpacing(20)
+        self.scan_folder_button = QPushButton("Scan Folder")
+        self.hbox_layout.addWidget(self.scan_folder_button)
+        self.scan_folder_button.pressed.connect(self.scan_folder_clicked)
+        self.hbox_layout.addSpacing(20)
+        self.hbox_layout.addWidget(QPushButton("Save JSON"))
+        self.hbox_layout.addSpacing(20)
+        self.hbox_layout.addWidget(QPushButton("Update Metadata"))
+
+        self.vbox_layout = QVBoxLayout()
+        self.vbox_layout.addWidget(self.splitter)
+        self.vbox_layout.addLayout(self.hbox_layout)
+
+        self.central_widget = QWidget()
+        self.central_widget.setLayout(self.vbox_layout)
+        self.setCentralWidget(self.central_widget)
 
         # Get last saved size of window
         settings = QSettings('MiniMediaManager', 'MiniMediaManager')
@@ -107,6 +241,18 @@ class MainWindow(QMainWindow):
             elif key == Qt.Key_Return:
                 print('return')
         return QWidget.eventFilter(self, watched, event)
+
+    @staticmethod
+    def load_json_clicked(self):
+        print('Load JSON...')
+
+    def scan_folder_clicked(self):
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+        # dialog.setDirectory(os.path.expanduser('~'))
+        if dialog.exec() and (selected_files := dialog.selectedFiles()):
+            chosen_directory = selected_files[0]
+            video_files = scan_folder(chosen_directory)
 
 
 if __name__ == '__main__':
