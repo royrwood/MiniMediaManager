@@ -1,69 +1,47 @@
+from typing import Union
 import sys
 
-from PySide6 import QtCore
-from PySide6.QtCore import Qt, QEvent, QSize, QSettings, QModelIndex
-from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QMainWindow, QTableWidgetItem, QApplication, QWidget, QStyledItemDelegate, QStyleOptionViewItem, QSplitter, QTextEdit
-from PySide6.QtGui import QGuiApplication, QPalette, QPen, QPainter
-
-
-class VerticalLineDelegate(QStyledItemDelegate):
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
-        # Let the base class do the rendering
-        super().paint(painter, option, index)
-
-        # And now paint the horizontal line
-        line = QtCore.QLine(option.rect.bottomLeft(), option.rect.bottomRight())
-        color = option.palette.color(QPalette.Dark)
-        painter.save()
-        painter.setPen(QPen(color))
-        painter.drawLine(line)
-        painter.restore()
+from PySide6 import QtCore, QtGui
+from PySide6.QtCore import Qt, QModelIndex, QPersistentModelIndex, QEvent, QSize, QSettings, QPoint
+from PySide6.QtWidgets import QAbstractItemView, QTableWidget, QMainWindow, QTableWidgetItem, QApplication, QWidget
+from PySide6.QtGui import QGuiApplication, QMoveEvent, QResizeEvent
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # The right side of the splitter is a dummy widget for now
-        self.textedit = QTextEdit()
-
-        # The left side of the splitter is a table
-        self.table_widget = QTableWidget()
-
-        # Add some dummy data
         num_rows = 100
         num_columns = 20
+
+        self.table_widget = QTableWidget()
+        self.table_widget.installEventFilter(self)
+
         self.table_widget.setRowCount(num_rows)
         self.table_widget.setColumnCount(num_columns)
+        self.table_widget.setHorizontalHeaderLabels([f'Item {i}' for i in range(num_columns)])
+        self.table_widget.verticalHeader().setVisible(False)
 
         for row_index in range(num_rows):
             for col_index in range(num_columns):
-                item = QTableWidgetItem(f'{col_index}-{row_index}')
+                item = QTableWidgetItem(f'{col_index} - {row_index}')
                 self.table_widget.setItem(row_index, col_index, item)
 
-        self.table_widget.setColumnWidth(0, 200)
-
-        # Configure table appearance and behaviour
-        self.table_widget.verticalHeader().setVisible(False)
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_widget.setShowGrid(False)
-        self.table_widget.setItemDelegate(VerticalLineDelegate(self.table_widget))
-        self.table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_widget.selectRow(0)
         self.table_widget.setFocus()
+        self.table_widget.setShowGrid(False)
+        self.table_widget.setStyleSheet('QTableView::item {border-bottom: 1px solid #d6d9dc;}')
 
-        # Set up callbacks
-        self.table_widget.installEventFilter(self)
-        self.table_widget.selectionModel().selectionChanged.connect(self.selection_changed)
+        # # width = self.table.columnWidth(1)
+        self.table_widget.setColumnWidth(0, 100)
+        self.table_widget.setColumnWidth(1, 202)
 
-        self.splitter = QSplitter(Qt.Horizontal)
-        self.setCentralWidget(self.splitter)
+        self.setCentralWidget(self.table_widget)
 
-        self.splitter.addWidget(self.table_widget)
-        self.splitter.addWidget(self.textedit)
-        self.splitter.setSizes([200, 100])
+        selection_model = self.table_widget.selectionModel()
+        selection_model.selectionChanged.connect(self.selection_changed)
 
-        # Get last saved size of window
         settings = QSettings('MiniMediaManager', 'MiniMediaManager')
 
         size: QSize = settings.value("size")
