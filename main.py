@@ -139,6 +139,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.video_file_data = None
+        self.video_file_path = None
+
         # The right side of the splitter is a dummy widget for now
         self.textedit = QTextEdit()
 
@@ -186,7 +189,9 @@ class MainWindow(QMainWindow):
         self.hbox_layout.addWidget(self.scan_folder_button)
         self.scan_folder_button.pressed.connect(self.scan_folder_clicked)
         self.hbox_layout.addSpacing(20)
-        self.hbox_layout.addWidget(QPushButton("Save JSON"))
+        self.button_save_json = QPushButton("Save JSON")
+        self.hbox_layout.addWidget(self.button_save_json)
+        self.button_save_json.pressed.connect(self.save_json_clicked)
         self.hbox_layout.addSpacing(20)
         self.hbox_layout.addWidget(QPushButton("Update Metadata"))
 
@@ -243,9 +248,45 @@ class MainWindow(QMainWindow):
                 print('return')
         return QWidget.eventFilter(self, watched, event)
 
-    @staticmethod
+    def update_table_widget(self):
+        if not self.video_file_data:
+            return
+
+        # column_headers = ['Title', ' Year ', ' Rating ', ' IMDB ']
+        self.table_widget.setRowCount(len(self.video_file_data))
+        for row_index, video_file in enumerate(self.video_file_data):
+            self.table_widget.setItem(row_index, 0, QTableWidgetItem(video_file.scrubbed_file_name))
+            self.table_widget.setItem(row_index, 1, QTableWidgetItem(video_file.scrubbed_file_year))
+            self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_rating))
+            self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_tt))
+
     def load_json_clicked(self):
-        print('Load JSON...')
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        if dialog.exec() and (selected_files := dialog.selectedFiles()):
+            self.video_file_path = selected_files[0]
+            with open(self.video_file_path, encoding='utf8') as f:
+                video_files_json = json.load(f)
+
+            self.video_file_data = list()
+            for video_file_dict in video_files_json:
+                video_file = VideoFile(**video_file_dict)
+                self.video_file_data.append(video_file)
+
+            self.update_table_widget()
+
+    def save_json_clicked(self):
+        # TODO: If self.video_file_path is set, then use that dir + file as default
+        dialog = QFileDialog(self)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setNameFilter("*.json")
+        if dialog.exec() and (selected_files := dialog.selectedFiles()):
+            self.video_file_path = selected_files[0]
+            with open(self.video_file_path, 'w', encoding='utf8') as f:
+                json_list = [dataclasses.asdict(video_file) for video_file in self.video_file_data]
+                json_str = json.dumps(json_list, indent=4)
+                f.write(json_str)
 
     def scan_folder_clicked(self):
         dialog = QFileDialog(self)
@@ -253,17 +294,8 @@ class MainWindow(QMainWindow):
         # dialog.setDirectory(os.path.expanduser('~'))
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             chosen_directory = selected_files[0]
-            video_files = scan_folder(chosen_directory)
-            # column_headers = ['Title', 'Year', 'Rating', 'IMDB']
-
-            self.table_widget.setRowCount(len(video_files))
-            for row_index, video_file in enumerate(video_files):
-                self.table_widget.setItem(row_index, 0, QTableWidgetItem(video_file.scrubbed_file_name))
-                self.table_widget.setItem(row_index, 1, QTableWidgetItem(video_file.scrubbed_file_year))
-                self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_rating))
-                self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_tt))
-
-            pass
+            self.video_file_data = scan_folder(chosen_directory)
+            self.update_table_widget()
 
 
 if __name__ == '__main__':
