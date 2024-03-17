@@ -31,6 +31,9 @@ from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QHeaderView
+from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QDialogButtonBox
+from PySide6.QtWidgets import QLabel
 
 
 @dataclasses.dataclass
@@ -121,6 +124,24 @@ def scan_folder(folder_path: Text, ignore_extensions: Text = None, filename_meta
     return video_files
 
 
+class CancellableProgressDialog(QDialog):
+    def __init__(self, initial_message: str):
+        super().__init__()
+
+        self.message_label = QLabel(initial_message)
+        self.cancel_button = QPushButton('Cancel')
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.message_label)
+        self.layout.addWidget(self.cancel_button)
+        self.setLayout(self.layout)
+
+        self.resize(800, 200)
+
+    def set_message(self, message: str):
+        self.message_label.text = message
+
+
 class VerticalLineDelegate(QStyledItemDelegate):
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         # Let the base class do the rendering
@@ -193,7 +214,13 @@ class MainWindow(QMainWindow):
         self.hbox_layout.addWidget(self.button_save_json)
         self.button_save_json.pressed.connect(self.save_json_clicked)
         self.hbox_layout.addSpacing(20)
-        self.hbox_layout.addWidget(QPushButton("Update Metadata"))
+        self.button_show_progress = QPushButton("Show Progress")
+        self.hbox_layout.addWidget(self.button_show_progress)
+        self.button_show_progress.pressed.connect(self.show_progress_clicked)
+        self.hbox_layout.addSpacing(20)
+        self.button_hide_progress = QPushButton("Hide Progress")
+        self.hbox_layout.addWidget(self.button_hide_progress)
+        self.button_hide_progress.pressed.connect(self.hide_progress_clicked)
 
         self.vbox_layout = QVBoxLayout()
         self.vbox_layout.addWidget(self.splitter)
@@ -216,6 +243,8 @@ class MainWindow(QMainWindow):
         pos: QSize = settings.value("pos")
         if pos:
             self.move(pos)  # Does not seem to work on Wayland
+
+        self.progress_dialog = CancellableProgressDialog('Initial Text!')
 
     def closeEvent(self, event):
         print('Main window closing!')
@@ -263,6 +292,7 @@ class MainWindow(QMainWindow):
     def load_json_clicked(self):
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.setNameFilter("*.json")
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             self.video_file_path = selected_files[0]
             with open(self.video_file_path, encoding='utf8') as f:
@@ -276,18 +306,22 @@ class MainWindow(QMainWindow):
             self.update_table_widget()
 
     def save_json_clicked(self):
-        # TODO: Save vs Save As
-        dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
-        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dialog.setNameFilter("*.json")
+        if not self.video_file_path:
+            dialog = QFileDialog(self)
+            dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+            dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            dialog.setNameFilter("*.json")
+
+            # TODO: Save As?
+            # dir_name = os.path.dirname(self.video_file_path)
+            # file_name = os.path.basename(self.video_file_path)
+            # dialog.setDirectory(dir_name)
+            # dialog.selectFile(file_name)
+
+            if dialog.exec() and (selected_files := dialog.selectedFiles()):
+                self.video_file_path = selected_files[0]
+
         if self.video_file_path:
-            dir_name = os.path.dirname(self.video_file_path)
-            file_name = os.path.basename(self.video_file_path)
-            dialog.setDirectory(dir_name)
-            dialog.selectFile(file_name)
-        if dialog.exec() and (selected_files := dialog.selectedFiles()):
-            self.video_file_path = selected_files[0]
             with open(self.video_file_path, 'w', encoding='utf8') as f:
                 json_list = [dataclasses.asdict(video_file) for video_file in self.video_file_data]
                 json_str = json.dumps(json_list, indent=4)
@@ -301,6 +335,12 @@ class MainWindow(QMainWindow):
             chosen_directory = selected_files[0]
             self.video_file_data = scan_folder(chosen_directory)
             self.update_table_widget()
+
+    def show_progress_clicked(self):
+        self.progress_dialog.show()
+
+    def hide_progress_clicked(self):
+        self.progress_dialog.hide()
 
 
 if __name__ == '__main__':
