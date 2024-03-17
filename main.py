@@ -145,15 +145,14 @@ class MainWindow(QMainWindow):
         self.table_widget = QTableWidget()
 
         # Add some dummy data
-        num_rows = 100
-        num_columns = 20
-        self.table_widget.setRowCount(num_rows)
-        self.table_widget.setColumnCount(num_columns)
+        column_headers = ['Title', 'Year', 'Rating', 'IMDB']
+        self.table_widget.setColumnCount(len(column_headers))
+        self.table_widget.setHorizontalHeaderLabels(column_headers)
 
-        for row_index in range(num_rows):
-            for col_index in range(num_columns):
-                item = QTableWidgetItem(f'{col_index}-{row_index}')
-                self.table_widget.setItem(row_index, col_index, item)
+        # for row_index in range(num_rows):
+        #     for col_index in range(num_columns):
+        #         item = QTableWidgetItem(f'{col_index}-{row_index}')
+        #         self.table_widget.setItem(row_index, col_index, item)
 
         self.table_widget.setColumnWidth(0, 200)
 
@@ -253,6 +252,16 @@ class MainWindow(QMainWindow):
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             chosen_directory = selected_files[0]
             video_files = scan_folder(chosen_directory)
+            # column_headers = ['Title', 'Year', 'Rating', 'IMDB']
+
+            self.table_widget.setRowCount(len(video_files))
+            for row_index, video_file in enumerate(video_files):
+                self.table_widget.setItem(row_index, 0, QTableWidgetItem(video_file.scrubbed_file_name))
+                self.table_widget.setItem(row_index, 1, QTableWidgetItem(video_file.scrubbed_file_year))
+                self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_rating))
+                self.table_widget.setItem(row_index, 2, QTableWidgetItem(video_file.imdb_tt))
+
+            pass
 
 
 if __name__ == '__main__':
