@@ -276,11 +276,16 @@ class MainWindow(QMainWindow):
             self.update_table_widget()
 
     def save_json_clicked(self):
-        # TODO: If self.video_file_path is set, then use that dir + file as default
+        # TODO: Save vs Save As
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setNameFilter("*.json")
+        if self.video_file_path:
+            dir_name = os.path.dirname(self.video_file_path)
+            file_name = os.path.basename(self.video_file_path)
+            dialog.setDirectory(dir_name)
+            dialog.selectFile(file_name)
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             self.video_file_path = selected_files[0]
             with open(self.video_file_path, 'w', encoding='utf8') as f:
