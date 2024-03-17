@@ -30,6 +30,7 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QHeaderView
 
 
 @dataclasses.dataclass
@@ -144,15 +145,16 @@ class MainWindow(QMainWindow):
         # The left side of the splitter is a table
         self.table_widget = QTableWidget()
 
-        # Add some dummy data
-        column_headers = ['Title', 'Year', 'Rating', 'IMDB']
+        # Set up table columns
+        column_headers = ['Title', ' Year ', ' Rating ', ' IMDB ']
         self.table_widget.setColumnCount(len(column_headers))
         self.table_widget.setHorizontalHeaderLabels(column_headers)
 
-        # for row_index in range(num_rows):
-        #     for col_index in range(num_columns):
-        #         item = QTableWidgetItem(f'{col_index}-{row_index}')
-        #         self.table_widget.setItem(row_index, col_index, item)
+        header = self.table_widget.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
 
         self.table_widget.setColumnWidth(0, 200)
 
