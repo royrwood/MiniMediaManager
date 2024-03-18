@@ -1,3 +1,4 @@
+import time
 from typing import List, Text, Tuple
 import dataclasses
 import json
@@ -12,6 +13,11 @@ from PySide6.QtCore import QModelIndex
 from PySide6.QtCore import QSettings
 from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject
+from PySide6.QtCore import Signal
+from PySide6.QtCore import Slot
+from PySide6.QtCore import QThreadPool
+from PySide6.QtCore import QRunnable
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtGui import QPainter
 from PySide6.QtGui import QPalette
@@ -48,6 +54,28 @@ class VideoFile:
     imdb_genres: List[Text] = None
     imdb_plot: Text = None
     is_dirty: bool = False
+
+
+class WorkerSignals(QObject):
+    finished = Signal()
+    error = Signal(tuple)
+    result = Signal(object)
+    progress = Signal(str)
+
+
+class Worker(QRunnable):
+    def __init__(self):
+        super().__init__()
+        self.signals = WorkerSignals()
+
+    @Slot()
+    def run(self):
+        count = 0
+        while True:
+            print(f'Worker: count={count}')
+            time.sleep(1.0)
+            self.signals.progress.emit(f'Step {count}')
+            count += 1
 
 
 def load_video_file_data(video_file_path: str) -> List[VideoFile]:
@@ -139,7 +167,8 @@ class CancellableProgressDialog(QDialog):
         self.resize(800, 200)
 
     def set_message(self, message: str):
-        self.message_label.text = message
+        print(f'CancellableProgressDialog: Setting label text to: {message}')
+        self.message_label.setText(message)
 
 
 class VerticalLineDelegate(QStyledItemDelegate):
@@ -245,6 +274,10 @@ class MainWindow(QMainWindow):
             self.move(pos)  # Does not seem to work on Wayland
 
         self.progress_dialog = CancellableProgressDialog('Initial Text!')
+        self.threadpool = QThreadPool()
+        self.worker = Worker()
+        self.worker.signals.progress.connect(self.do_progress_update)
+        self.threadpool.start(self.worker)
 
     def closeEvent(self, event):
         print('Main window closing!')
@@ -341,6 +374,9 @@ class MainWindow(QMainWindow):
 
     def hide_progress_clicked(self):
         self.progress_dialog.hide()
+
+    def do_progress_update(self, message):
+        self.progress_dialog.set_message(message)
 
 
 if __name__ == '__main__':
