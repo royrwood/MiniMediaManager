@@ -13,11 +13,7 @@ from PySide6.QtCore import QModelIndex
 from PySide6.QtCore import QSettings
 from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
-from PySide6.QtCore import QObject
 from PySide6.QtCore import Signal
-from PySide6.QtCore import Slot
-from PySide6.QtCore import QThreadPool
-from PySide6.QtCore import QRunnable
 from PySide6.QtCore import QThread
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtGui import QPainter
@@ -39,7 +35,6 @@ from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QHeaderView
 from PySide6.QtWidgets import QDialog
-from PySide6.QtWidgets import QDialogButtonBox
 from PySide6.QtWidgets import QLabel
 
 
@@ -58,10 +53,11 @@ class VideoFile:
 
 
 class FolderScanWorker(QThread):
-    def __init__(self, folder_path: Text, progress_callback=None, ignore_extensions: Text = None, filename_metadata_tokens: Text = None):
+    progress_signal = Signal(str)
+
+    def __init__(self, folder_path: Text, ignore_extensions: Text = None, filename_metadata_tokens: Text = None):
         super().__init__()
         self.folder_data = None
-        self.progress_callback = progress_callback
         self.ignore_extensions = ignore_extensions or 'png,jpg,nfo,srt'
         self.filename_metadata_tokens = filename_metadata_tokens or '480p,720p,1080p,bluray,hevc,x265,x264,web,webrip,web-dl,repack,proper,extended,remastered,dvdrip,dvd,hdtv,xvid,hdrip,brrip,dvdscr,pdtv'
         self.folder_path = folder_path
@@ -108,6 +104,9 @@ class FolderScanWorker(QThread):
         for dir_path, dirs, files in os.walk(self.folder_path):
             for filename in files:
                 print(f'FolderScanWorker: Processing file "{filename}"')
+                self.progress_signal.emit(f'FolderScanWorker: Processing file "{filename}"')
+                time.sleep(1.0)
+
                 file_path = os.path.join(dir_path, filename)
                 filename_parts = os.path.splitext(filename)
                 filename_no_extension = filename_parts[0]
@@ -121,10 +120,6 @@ class FolderScanWorker(QThread):
                 scrubbed_video_file_name, year = self.scrub_video_file_name(filename_no_extension, self.filename_metadata_tokens)
                 video_file = VideoFile(file_path=file_path, scrubbed_file_name=scrubbed_video_file_name, scrubbed_file_year=year)
                 self.folder_data.append(video_file)
-
-                if self.progress_callback:
-                    self.progress_callback(f'Processed file: {filename}')
-                    time.sleep(1.0)
 
         print(f'FolderScanWorker: End processing directory "{self.folder_path}"')
 
@@ -353,9 +348,10 @@ class MainWindow(QMainWindow):
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             chosen_directory = selected_files[0]
             print('Creating FolderScanWorker...')
-            self.folder_scan_worker = FolderScanWorker(folder_path=chosen_directory, progress_callback=self.do_progress_update)
-            print('Showing progress dialog...')
-            self.progress_dialog.show()
+            self.folder_scan_worker = FolderScanWorker(folder_path=chosen_directory)
+            self.folder_scan_worker.progress_signal.connect(self.do_progress_update)
+            self.folder_scan_worker.started.connect(self.show_progress_clicked)
+            self.folder_scan_worker.finished.connect(self.hide_progress_clicked)
             print('Starting FolderScanWorker...')
             self.folder_scan_worker.start()
             print('Started FolderScanWorker')
