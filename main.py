@@ -18,6 +18,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtCore import Slot
 from PySide6.QtCore import QThreadPool
 from PySide6.QtCore import QRunnable
+from PySide6.QtCore import QThread
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtGui import QPainter
 from PySide6.QtGui import QPalette
@@ -56,26 +57,76 @@ class VideoFile:
     is_dirty: bool = False
 
 
-class WorkerSignals(QObject):
-    finished = Signal()
-    error = Signal(tuple)
-    result = Signal(object)
-    progress = Signal(str)
-
-
-class Worker(QRunnable):
-    def __init__(self):
+class FolderScanWorker(QThread):
+    def __init__(self, folder_path: Text, progress_callback=None, ignore_extensions: Text = None, filename_metadata_tokens: Text = None):
         super().__init__()
-        self.signals = WorkerSignals()
+        self.folder_data = None
+        self.progress_callback = progress_callback
+        self.ignore_extensions = ignore_extensions or 'png,jpg,nfo,srt'
+        self.filename_metadata_tokens = filename_metadata_tokens or '480p,720p,1080p,bluray,hevc,x265,x264,web,webrip,web-dl,repack,proper,extended,remastered,dvdrip,dvd,hdtv,xvid,hdrip,brrip,dvdscr,pdtv'
+        self.folder_path = folder_path
 
-    @Slot()
+    @staticmethod
+    def scrub_video_file_name(file_name: Text, filename_metadata_tokens: Text) -> Tuple[Text, Text]:
+        year = ''
+
+        match = re.match(r'((.*)\((\d{4})\))', file_name)
+        if match:
+            file_name = match.group(2)
+            year = match.group(3)
+            scrubbed_file_name_list = file_name.replace('.', ' ').split()
+
+        else:
+            metadata_token_list = [token.lower().strip() for token in filename_metadata_tokens.split(',')]
+            file_name_parts = file_name.replace('.', ' ').split()
+            scrubbed_file_name_list = list()
+
+            for file_name_part in file_name_parts:
+                file_name_part = file_name_part.lower()
+
+                if file_name_part in metadata_token_list:
+                    break
+                scrubbed_file_name_list.append(file_name_part)
+
+            if scrubbed_file_name_list:
+                match = re.match(r'\(?(\d{4})\)?', scrubbed_file_name_list[-1])
+                if match:
+                    year = match.group(1)
+                    del scrubbed_file_name_list[-1]
+
+        scrubbed_file_name = ' '.join(scrubbed_file_name_list).strip()
+        scrubbed_file_name = re.sub(' +', ' ', scrubbed_file_name)
+        return scrubbed_file_name, year
+
     def run(self):
-        count = 0
-        while True:
-            print(f'Worker: count={count}')
-            time.sleep(1.0)
-            self.signals.progress.emit(f'Step {count}')
-            count += 1
+        print(f'FolderScanWorker: Begin processing directory "{self.folder_path}"')
+
+        ignore_extensions_list = [ext.lower().strip() for ext in self.ignore_extensions.split(',')]
+
+        self.folder_data = list()
+
+        for dir_path, dirs, files in os.walk(self.folder_path):
+            for filename in files:
+                print(f'FolderScanWorker: Processing file "{filename}"')
+                file_path = os.path.join(dir_path, filename)
+                filename_parts = os.path.splitext(filename)
+                filename_no_extension = filename_parts[0]
+                filename_extension = filename_parts[1]
+                if filename_extension.startswith('.'):
+                    filename_extension = filename_extension[1:]
+
+                if filename_extension.lower() in ignore_extensions_list:
+                    continue
+
+                scrubbed_video_file_name, year = self.scrub_video_file_name(filename_no_extension, self.filename_metadata_tokens)
+                video_file = VideoFile(file_path=file_path, scrubbed_file_name=scrubbed_video_file_name, scrubbed_file_year=year)
+                self.folder_data.append(video_file)
+
+                if self.progress_callback:
+                    self.progress_callback(f'Processed file: {filename}')
+                    time.sleep(1.0)
+
+        print(f'FolderScanWorker: End processing directory "{self.folder_path}"')
 
 
 def load_video_file_data(video_file_path: str) -> List[VideoFile]:
@@ -88,68 +139,6 @@ def load_video_file_data(video_file_path: str) -> List[VideoFile]:
         video_files_data.append(video_file)
 
     return video_files_data
-
-
-def scrub_video_file_name(file_name: Text, filename_metadata_tokens: Text) -> Tuple[Text, Text]:
-    year = ''
-
-    match = re.match(r'((.*)\((\d{4})\))', file_name)
-    if match:
-        file_name = match.group(2)
-        year = match.group(3)
-        scrubbed_file_name_list = file_name.replace('.', ' ').split()
-
-    else:
-        metadata_token_list = [token.lower().strip() for token in filename_metadata_tokens.split(',')]
-        file_name_parts = file_name.replace('.', ' ').split()
-        scrubbed_file_name_list = list()
-
-        for file_name_part in file_name_parts:
-            file_name_part = file_name_part.lower()
-
-            if file_name_part in metadata_token_list:
-                break
-            scrubbed_file_name_list.append(file_name_part)
-
-        if scrubbed_file_name_list:
-            match = re.match(r'\(?(\d{4})\)?', scrubbed_file_name_list[-1])
-            if match:
-                year = match.group(1)
-                del scrubbed_file_name_list[-1]
-
-    scrubbed_file_name = ' '.join(scrubbed_file_name_list).strip()
-    scrubbed_file_name = re.sub(' +', ' ', scrubbed_file_name)
-    return scrubbed_file_name, year
-
-
-def scan_folder(folder_path: Text, ignore_extensions: Text = None, filename_metadata_tokens: Text = None) -> List[VideoFile]:
-    if ignore_extensions is None:
-        ignore_extensions = 'png,jpg,nfo,srt'
-    if filename_metadata_tokens is None:
-        filename_metadata_tokens = '480p,720p,1080p,bluray,hevc,x265,x264,web,webrip,web-dl,repack,proper,extended,remastered,dvdrip,dvd,hdtv,xvid,hdrip,brrip,dvdscr,pdtv'
-
-    ignore_extensions_list = [ext.lower().strip() for ext in ignore_extensions.split(',')]
-
-    video_files = list()
-
-    for dir_path, dirs, files in os.walk(folder_path):
-        for filename in files:
-            print(f'Processing file "{filename}"')
-            file_path = os.path.join(dir_path, filename)
-            filename_parts = os.path.splitext(filename)
-            filename_no_extension = filename_parts[0]
-            filename_extension = filename_parts[1]
-            if filename_extension.startswith('.'):
-                filename_extension = filename_extension[1:]
-
-            if filename_extension.lower() in ignore_extensions_list:
-                continue
-
-            scrubbed_video_file_name, year = scrub_video_file_name(filename_no_extension, filename_metadata_tokens)
-            video_file = VideoFile(file_path=file_path, scrubbed_file_name=scrubbed_video_file_name, scrubbed_file_year=year)
-            video_files.append(video_file)
-
-    return video_files
 
 
 class CancellableProgressDialog(QDialog):
@@ -274,10 +263,7 @@ class MainWindow(QMainWindow):
             self.move(pos)  # Does not seem to work on Wayland
 
         self.progress_dialog = CancellableProgressDialog('Initial Text!')
-        self.threadpool = QThreadPool()
-        self.worker = Worker()
-        self.worker.signals.progress.connect(self.do_progress_update)
-        self.threadpool.start(self.worker)
+        self.folder_scan_worker = None
 
     def closeEvent(self, event):
         print('Main window closing!')
@@ -366,8 +352,15 @@ class MainWindow(QMainWindow):
         # dialog.setDirectory(os.path.expanduser('~'))
         if dialog.exec() and (selected_files := dialog.selectedFiles()):
             chosen_directory = selected_files[0]
-            self.video_file_data = scan_folder(chosen_directory)
-            self.update_table_widget()
+            print('Creating FolderScanWorker...')
+            self.folder_scan_worker = FolderScanWorker(folder_path=chosen_directory, progress_callback=self.do_progress_update)
+            print('Showing progress dialog...')
+            self.progress_dialog.show()
+            print('Starting FolderScanWorker...')
+            self.folder_scan_worker.start()
+            print('Started FolderScanWorker')
+            # self.video_file_data = scan_folder(chosen_directory)
+            # self.update_table_widget()
 
     def show_progress_clicked(self):
         self.progress_dialog.show()
