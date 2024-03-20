@@ -61,6 +61,10 @@ class FolderScanWorker(QThread):
         self.ignore_extensions = ignore_extensions or 'png,jpg,nfo,srt'
         self.filename_metadata_tokens = filename_metadata_tokens or '480p,720p,1080p,bluray,hevc,x265,x264,web,webrip,web-dl,repack,proper,extended,remastered,dvdrip,dvd,hdtv,xvid,hdrip,brrip,dvdscr,pdtv'
         self.folder_path = folder_path
+        self.keep_scanning = True
+
+    def stop_scanning(self):
+        self.keep_scanning = False
 
     @staticmethod
     def scrub_video_file_name(file_name: Text, filename_metadata_tokens: Text) -> Tuple[Text, Text]:
@@ -103,6 +107,10 @@ class FolderScanWorker(QThread):
 
         for dir_path, dirs, files in os.walk(self.folder_path):
             for filename in files:
+                if self.keep_scanning is False:
+                    print(f'FolderScanWorker: Stopping scanning')
+                    return
+
                 print(f'FolderScanWorker: Processing file "{filename}"')
                 self.progress_signal.emit(f'FolderScanWorker: Processing file "{filename}"')
                 time.sleep(1.0)
@@ -258,6 +266,7 @@ class MainWindow(QMainWindow):
             self.move(pos)  # Does not seem to work on Wayland
 
         self.progress_dialog = CancellableProgressDialog('Initial Text!')
+        self.progress_dialog.cancel_button.pressed.connect(self.do_stop_scanning)
         self.folder_scan_worker = None
 
     def closeEvent(self, event):
@@ -366,6 +375,10 @@ class MainWindow(QMainWindow):
 
     def do_progress_update(self, message):
         self.progress_dialog.set_message(message)
+
+    def do_stop_scanning(self):
+        if self.folder_scan_worker:
+            self.folder_scan_worker.stop_scanning()
 
 
 if __name__ == '__main__':
