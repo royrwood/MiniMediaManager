@@ -194,6 +194,7 @@ class MainWindow(QMainWindow):
         column_headers = ['Title', ' Year ', ' Rating ', ' IMDB ']
         self.table_widget.setColumnCount(len(column_headers))
         self.table_widget.setHorizontalHeaderLabels(column_headers)
+        self.table_widget.setAlternatingRowColors(True)
 
         header = self.table_widget.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
