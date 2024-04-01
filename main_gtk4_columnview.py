@@ -38,7 +38,6 @@ class MyItemFactory(Gtk.SignalListItemFactory):
         self.connect("setup", self.on_setup)
         self.connect("bind", self.on_bind)
 
-
     def on_setup(self, _signal_factory, list_item):
         label = Gtk.Label.new()
         label.set_halign(Gtk.Align.START)
@@ -63,7 +62,9 @@ class MainWindow(Gtk.ApplicationWindow):
         # self.listview = Gtk.ListView.new(self.single_selection_list_store, self.signal_factory)
 
         # ColumnView with custom columns
-        self.column_view = Gtk.ColumnView(model=Gtk.SingleSelection(model=self.list_store_model), hexpand=True, vexpand=True)
+        self.single_selection_list_store = Gtk.SingleSelection(model=self.list_store_model)
+        self.single_selection_list_store.connect("notify::selected", self.on_item_list_selected)
+        self.column_view = Gtk.ColumnView(model=self.single_selection_list_store, hexpand=True, vexpand=True)
         # self.column_view.set_show_column_separators(True)
         self.column_view.set_show_row_separators(True)
         self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_id'), expand=True))
@@ -73,6 +74,16 @@ class MainWindow(Gtk.ApplicationWindow):
         self.scrolled_window = Gtk.ScrolledWindow.new()
         self.scrolled_window.set_child(self.column_view)
         self.set_child(self.scrolled_window)
+
+    def on_item_list_selected(self, obj, g_param_spec):
+        pass
+        # obj should be self.single_selection_list_store
+        # g_param_spec.name should be "selected"
+        # selected_item = single_selection_list_store.props.selected_item  # Gtk.StringObject
+        # string_value = selected_item.props.string
+        # position = single_selection_list_store.get_selected()
+        # print(f"Selected String   = {string_value}")
+        # print(f"Selected Position = {position}")
 
 
 class MyApp(Gtk.Application):
