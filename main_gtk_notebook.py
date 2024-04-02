@@ -12,7 +12,7 @@ import time
 import gi
 
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, Gio, GObject, Gdk, GLib, Adw
+from gi.repository import Gtk, Gio, GObject, Gdk, GLib
 
 
 @dataclasses.dataclass
@@ -27,6 +27,18 @@ class VideoFile:
     imdb_genres: List[Text] = None
     imdb_plot: Text = None
     is_dirty: bool = False
+
+
+def load_video_file_data(video_file_path: str) -> List[VideoFile]:
+    with open(video_file_path, encoding='utf8') as f:
+        video_files_json = json.load(f)
+
+    video_files_data = list()
+    for video_file_dict in video_files_json:
+        video_file = VideoFile(**video_file_dict)
+        video_files_data.append(video_file)
+
+    return video_files_data
 
 
 class FolderScanWorker(Thread):
@@ -111,15 +123,13 @@ class FolderScanWorker(Thread):
 class MyListModelDataItem(GObject.Object):
     __gtype_name__ = "MyListModelDataItem"
 
-    def __init__(self, user_id, user_name_first, user_name_last):
+    def __init__(self, title, year, rating, imdb_tt):
         super().__init__()
 
-        self.user_id = user_id
-        self.user_name_first = user_name_first
-        self.user_name_last = user_name_last
-
-    def __repr__(self):
-        return f"MyListModelDataItem(id={self.user_id}, user_name={self.user_name_first} {self.user_name_last})"
+        self.title = title
+        self.year = year
+        self.rating = rating
+        self.imdb_tt = imdb_tt
 
 
 class MyItemFactory(Gtk.SignalListItemFactory):
@@ -137,7 +147,8 @@ class MyItemFactory(Gtk.SignalListItemFactory):
     def on_bind(self, _signal_factory, list_item):
         my_list_mode_data_item = list_item.props.item
         label = list_item.get_child()  # label
-        label.props.label = str(getattr(my_list_mode_data_item, self._field_name))
+        attr = getattr(my_list_mode_data_item, self._field_name)
+        label.props.label = str(attr)
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -145,23 +156,32 @@ class MainWindow(Gtk.ApplicationWindow):
         super().__init__(*args, **kwargs)
         self.set_default_size(800, 600)
 
-        self.list_store_model = Gio.ListStore(item_type=MyListModelDataItem)
-        self.list_store_model.append(MyListModelDataItem(1, 'Karl', 'Barkley'))
-        self.list_store_model.append(MyListModelDataItem(2, 'Bart', 'Simpson'))
-        self.list_store_model.append(MyListModelDataItem(3, 'James', 'Bond'))
+        # self.list_store_model = Gio.ListStore(item_type=MyListModelDataItem)
+        self.list_store_model = Gio.ListStore()
+        # self.list_store_model.append(MyListModelDataItem(1, 'Karl', 'Barkley'))
+        # self.list_store_model.append(MyListModelDataItem(2, 'Bart', 'Simpson'))
+        # self.list_store_model.append(MyListModelDataItem(3, 'James', 'Bond'))
 
         # ColumnView with custom columns
         self.single_selection_list_store = Gtk.SingleSelection(model=self.list_store_model)
         self.single_selection_list_store.connect("notify::selected", self.on_item_list_selected)
         self.column_view = Gtk.ColumnView(model=self.single_selection_list_store, hexpand=True, vexpand=True)
         self.column_view.set_show_row_separators(True)
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_id'), expand=True))
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='FIRST', factory=MyItemFactory('user_name_first'), expand=True))
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_name_last'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='TITLE', factory=MyItemFactory('title'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='YEAR', factory=MyItemFactory('year'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='RATING', factory=MyItemFactory('rating'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='IMDB TT', factory=MyItemFactory('imdb_tt'), expand=True))
 
         self.scrolled_window = Gtk.ScrolledWindow.new()
         self.scrolled_window.set_child(self.column_view)
         # self.set_child(self.scrolled_window)
+
+        self.scrolled_window_button = Gtk.Button(label='Load', hexpand=True, vexpand=False)
+        self.scrolled_window_button.connect("clicked", self.on_load_video_json)
+
+        self.scrolled_window_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, vexpand=True, hexpand=True, margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
+        self.scrolled_window_box.append(self.scrolled_window)
+        self.scrolled_window_box.append(self.scrolled_window_button)
 
         self.file_scanning_thread = FolderScanWorker(folder_path='/home/rrwood/Downloads/ZZ_Movies_Copied_To_External/', progress_callback=self.on_scanning_progress)
         # thread.start()
@@ -194,10 +214,31 @@ class MainWindow(Gtk.ApplicationWindow):
         self.file_scanning_box.append(self.file_scanning_button_box)
 
         self.notebook = Gtk.Notebook(margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
-        self.notebook.append_page(self.scrolled_window, Gtk.Label(label='Files'))
+        self.notebook.append_page(self.scrolled_window_box, Gtk.Label(label='Files'))
         self.notebook.append_page(self.file_scanning_box, Gtk.Label(label='Scanning'))
 
         self.set_child(self.notebook)
+
+        self.open_dialog = Gtk.FileDialog(title="Select a File")
+        self.video_file_data = list()
+
+    def on_load_video_json(self, _widget):
+        self.open_dialog.open(self, None, self.open_dialog_open_callback)
+
+    def open_dialog_open_callback(self, dialog, result):
+        try:
+            gio_file: Gio.File = dialog.open_finish(result)
+            if gio_file is not None:
+                print(f"File path is {gio_file.get_path()}")
+                with open(gio_file.get_path(), encoding='utf8') as f:
+                    video_files_json = json.load(f)
+            self.video_file_data = list()
+            for video_file_dict in video_files_json:
+                video_file = VideoFile(**video_file_dict)
+                self.video_file_data.append(video_file)
+                self.list_store_model.append(MyListModelDataItem(video_file.scrubbed_file_name, video_file.scrubbed_file_year, video_file.imdb_rating, video_file.imdb_tt))
+        except GLib.Error as error:
+            print(f"Error opening file: {error.message}")
 
     def on_start_scanning(self, _widget):
         self.file_scanning_thread.start()

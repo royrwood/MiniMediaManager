@@ -132,16 +132,16 @@ class FolderScanWorker(QThread):
         print(f'FolderScanWorker: End processing directory "{self.folder_path}"')
 
 
-def load_video_file_data(video_file_path: str) -> List[VideoFile]:
-    with open(video_file_path, encoding='utf8') as f:
-        video_files_json = json.load(f)
-
-    video_files_data = list()
-    for video_file_dict in video_files_json:
-        video_file = VideoFile(**video_file_dict)
-        video_files_data.append(video_file)
-
-    return video_files_data
+# def load_video_file_data(video_file_path: str) -> List[VideoFile]:
+#     with open(video_file_path, encoding='utf8') as f:
+#         video_files_json = json.load(f)
+#
+#     video_files_data = list()
+#     for video_file_dict in video_files_json:
+#         video_file = VideoFile(**video_file_dict)
+#         video_files_data.append(video_file)
+#
+#     return video_files_data
 
 
 class CancellableProgressDialog(QDialog):
