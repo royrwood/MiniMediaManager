@@ -118,18 +118,6 @@ class MyListModelDataItem(GObject.Object):
         self.user_name_first = user_name_first
         self.user_name_last = user_name_last
 
-    # @GObject.Property(type=str)
-    # def user_id(self):
-    #     return self._user_id
-    #
-    # @GObject.Property(type=str)
-    # def user_name_first(self):
-    #     return self._user_name_first
-    #
-    # @GObject.Property(type=str)
-    # def user_name_last(self):
-    #     return self._user_name_last
-
     def __repr__(self):
         return f"MyListModelDataItem(id={self.user_id}, user_name={self.user_name_first} {self.user_name_last})"
 
@@ -157,145 +145,64 @@ class MainWindow(Gtk.ApplicationWindow):
         super().__init__(*args, **kwargs)
         self.set_default_size(800, 600)
 
-        # self.list_store_model = Gio.ListStore(item_type=MyListModelDataItem)
-        # self.list_store_model.append(MyListModelDataItem(1, 'Karl', 'Barkley'))
-        # self.list_store_model.append(MyListModelDataItem(2, 'Bart', 'Simpson'))
-        # self.list_store_model.append(MyListModelDataItem(3, 'James', 'Bond'))
-        #
-        # # self.listview = Gtk.ListView.new(self.single_selection_list_store, self.signal_factory)
-        #
-        # # ColumnView with custom columns
-        # self.single_selection_list_store = Gtk.SingleSelection(model=self.list_store_model)
-        # self.single_selection_list_store.connect("notify::selected", self.on_item_list_selected)
-        # self.column_view = Gtk.ColumnView(model=self.single_selection_list_store, hexpand=True, vexpand=True)
-        # # self.column_view.set_show_column_separators(True)
-        # self.column_view.set_show_row_separators(True)
-        # self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_id'), expand=True))
-        # self.column_view.append_column(Gtk.ColumnViewColumn(title='FIRST', factory=MyItemFactory('user_name_first'), expand=True))
-        # self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_name_last'), expand=True))
-        #
-        # self.scrolled_window = Gtk.ScrolledWindow.new()
-        # self.scrolled_window.set_child(self.column_view)
+        self.list_store_model = Gio.ListStore(item_type=MyListModelDataItem)
+        self.list_store_model.append(MyListModelDataItem(1, 'Karl', 'Barkley'))
+        self.list_store_model.append(MyListModelDataItem(2, 'Bart', 'Simpson'))
+        self.list_store_model.append(MyListModelDataItem(3, 'James', 'Bond'))
+
+        # ColumnView with custom columns
+        self.single_selection_list_store = Gtk.SingleSelection(model=self.list_store_model)
+        self.single_selection_list_store.connect("notify::selected", self.on_item_list_selected)
+        self.column_view = Gtk.ColumnView(model=self.single_selection_list_store, hexpand=True, vexpand=True)
+        self.column_view.set_show_row_separators(True)
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_id'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='FIRST', factory=MyItemFactory('user_name_first'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='ID', factory=MyItemFactory('user_name_last'), expand=True))
+
+        self.scrolled_window = Gtk.ScrolledWindow.new()
+        self.scrolled_window.set_child(self.column_view)
         # self.set_child(self.scrolled_window)
 
-        # self.progress = Gtk.ProgressBar(show_text=True)
-        # self.set_child(self.progress)
-
-        # thread = threading.Thread(target=self.example_target)
-        # thread.daemon = True
-        # thread.start()
-        #
         # thread = FolderScanWorker(folder_path='/home/rrwood/Downloads/ZZ_Movies_Copied_To_External/', progress_callback=self.update_progress)
         # thread.daemon = True
         # thread.start()
 
-        button = Gtk.Button(label="Open dialog")
-        button.connect("clicked", self.on_button_clicked)
+        self.file_scanning_text_buffer = Gtk.TextBuffer()
+        text_buffer_end_iter = self.file_scanning_text_buffer.get_end_iter()
+        for i in range(100):
+            self.file_scanning_text_buffer.insert(text_buffer_end_iter, f"Line {i}\n")
+        self.file_scanning_text_view = Gtk.TextView(buffer=self.file_scanning_text_buffer, editable=False, monospace=True, wrap_mode=Gtk.WrapMode.NONE, vexpand=True, hexpand=True, margin_top=5, margin_bottom=5, margin_start=5, margin_end=5)
+        self.file_scanning_text_scrolled_window = Gtk.ScrolledWindow(has_frame=True)
+        self.file_scanning_text_scrolled_window.set_child(self.file_scanning_text_view)
 
-        # self.dialog = Gtk.AlertDialog(message='Main Message', buttons=['Cancel'])
+        self.file_scanning_start_button = Gtk.Button(label='Start', hexpand=True, vexpand=False)
+        self.file_scanning_pause_button = Gtk.Button(label='Pause', hexpand=True, vexpand=False)
+        self.file_scanning_cancel_button = Gtk.Button(label='Cancel', hexpand=True, vexpand=False)
+        self.file_scanning_button_box = Gtk.Box(vexpand=False, spacing=10, orientation=Gtk.Orientation.HORIZONTAL)
+        self.file_scanning_button_box.append(self.file_scanning_start_button)
+        self.file_scanning_button_box.append(self.file_scanning_pause_button)
+        self.file_scanning_button_box.append(self.file_scanning_cancel_button)
 
-        self.message_dialog = Gtk.MessageDialog(text='This is the main text', secondary_text='This is the secondary text', buttons=Gtk.ButtonsType.CANCEL)
-        self.message_dialog.connect("response", self.message_dialog_response)
-        self.message_dialog.set_transient_for(self)
-        self.message_dialog.set_modal(False)
+        self.file_scanning_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, vexpand=True, hexpand=True, margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
+        self.file_scanning_box.append(self.file_scanning_text_scrolled_window)
+        # self.file_scanning_box.append(Gtk.Box(vexpand=True))
+        self.file_scanning_box.append(self.file_scanning_button_box)
 
-        # self.progress_window = Gtk.Window()
-        # self.progress_window.set_default_size(400, 200)
-        # self.progress_window_box = Gtk.Box(vexpand=True, spacing=20, orientation=Gtk.Orientation.VERTICAL, margin_top=20, margin_bottom=20, margin_start=20, margin_end=20)
-        # self.progress_window.set_child(self.progress_window_box)
-        # self.progress_window_label = Gtk.Label(label='This is some text')
-        # self.progress_window_box.append(self.progress_window_label)
-        # self.progress_window_box.append(Gtk.Box(vexpand=True))
-        # self.progress_window_button = Gtk.Button(label='Cancel', hexpand=False, halign=Gtk.Align.END)
-        # self.progress_window_box.append(self.progress_window_button)
+        self.notebook = Gtk.Notebook(margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
+        self.notebook.append_page(self.scrolled_window, Gtk.Label(label='Files'))
+        self.notebook.append_page(self.file_scanning_box, Gtk.Label(label='Scanning'))
 
-        self.set_child(button)
-
-
-    # def update_progress(self, progress_message):
-    #     self.progress.pulse()
-    #     self.progress.set_text(progress_message)
-    #     return False
-    #
-    # def example_target(self):
-    #     for i in range(50):
-    #         GLib.idle_add(self.update_progress, i)
-    #         time.sleep(0.2)
+        self.set_child(self.notebook)
 
     def on_item_list_selected(self, obj, g_param_spec):
-        pass
         # obj should be self.single_selection_list_store
         # g_param_spec.name should be "selected"
-        # selected_item = single_selection_list_store.props.selected_item  # Gtk.StringObject
+        # selected_item = self.single_selection_list_store.props.selected_item  # Gtk.StringObject
         # string_value = selected_item.props.string
-        # position = single_selection_list_store.get_selected()
+        # position = self.single_selection_list_store.get_selected()
         # print(f"Selected String   = {string_value}")
         # print(f"Selected Position = {position}")
-
-    # def on_button_clicked(self, widget):
-    #     dialog = Gtk.Dialog()
-    #     # dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
-    #     dialog.set_default_size(150, 100)
-    #     content_area = dialog.get_content_area()
-    #     content_area.append(Gtk.Label(label='This is a dialog box'))
-    #     dialog.add_button('Dialog Button', 0)
-    #     dialog.show()
-
-    def on_button_clicked(self, widget):
-        # dialog = Gtk.AlertDialog(message='Main Message', detail='Secondary Message', buttons=['Cancel'])
-        # dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK)
-        # dialog.set_default_size(150, 100)
-
-        thread = FolderScanWorker(folder_path='/home/rrwood/Downloads/ZZ_Movies_Copied_To_External/', progress_callback=self.on_dialog_progress_update)
-        thread.daemon = True
-        thread.start()
-
-        # self.dialog.choose(self, None, self.dialog_choose_callback, 'My User Data')
-
-        # self.adw_dialog.choose(None, self.on_dialog_cancel, 'My User Data')
-
-        self.message_dialog.show()
-
-        # self.progress_window.present()
-        #
-        # dialog = Gtk.AlertDialog(message='Main Message', buttons=['Cancel'])
-        # dialog.choose(self, None, self.on_dialog_cancel, 'My User Data')
-
-    def on_dialog_progress_update(self, progress_message):
-        print(f'on_dialog_progress_update: {progress_message}')
-
-        box: Gtk.Widget = self.message_dialog.get_message_area()
-        if isinstance(box, Gtk.Box):
-            child: Gtk.Widget = box.get_first_child()
-            if child and isinstance(child, Gtk.Widget):
-                child = child.get_next_sibling()
-                if child and isinstance(child, Gtk.Label):
-                    child.set_label(progress_message)
-
-        # self.progress_window_label.set_label(progress_message)
-
-        # foo = self.message_dialog.get_child()
-
-        # self.adw_dialog.set_body(progress_message)
-        # self.progress_window_label.set_label(progress_message)
-
         pass
-
-    # def dialog_choose_callback(self, _g_object, g_async_result, _g_pointer_data):
-    #     self.message_dialog.destroy()
-    #     pass
-
-    def message_dialog_response(self, g_object, g_async_result):
-        self.message_dialog.destroy()
-        pass
-
-        #     # result = g_object.choose_finish(g_async_result)
-        #     self.message_dialog.destroy()
-        #     pass
-    # def on_dialog_cancel(self, g_object, g_async_result):
-    #     # result = g_object.choose_finish(g_async_result)
-    #     self.message_dialog.destroy()
-    #     pass
 
 
 class MyApp(Gtk.Application):
