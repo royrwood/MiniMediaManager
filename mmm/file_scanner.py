@@ -15,6 +15,16 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, Gio, GObject, Gdk, GLib
 
 
+# class FileScannerSignals(GObject.Object):
+#     @GObject.Signal(arg_types=(str,))
+#     def file_added(self, *args):
+#         pass
+#
+#     # @GObject.Signal
+#     # def noarg_signal(self):
+#     #     print("noarg_signal")
+
+
 @dataclasses.dataclass
 class VideoFile:
     file_path: Text = ''
@@ -147,6 +157,10 @@ class FileScannerPanel(Gtk.Box):
         self.append(self.progress_log_text_scrolled_window)
         self.append(self.file_scanning_button_box)
 
+    @GObject.Signal(arg_types=(str,))
+    def file_added(self, *args):
+        pass
+
     def on_start_scanning(self, _widget):
         self.file_scanning_thread.start()
         pass
@@ -165,6 +179,8 @@ class FileScannerPanel(Gtk.Box):
 
     def on_scanning_progress(self, message):
         print(f'on_scanning_progress: {message}')
+
+        self.emit('file_added', message)
 
         visible_rect: Gdk.Rectangle = self.progress_log_text_view.get_visible_rect()
         text_buffer_end_iter = self.progress_log_text_buffer.get_end_iter()

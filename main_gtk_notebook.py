@@ -207,6 +207,7 @@ class MainWindow(Gtk.ApplicationWindow):
         # self.file_scanning_box.append(self.file_scanning_button_box)
 
         self.file_scanning_box = FileScannerPanel()
+        self.file_scanning_box.connect('file_added', self.file_added_handler)
 
         self.notebook = Gtk.Notebook(margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
         self.notebook.append_page(self.scrolled_window_box, Gtk.Label(label='Files'))
@@ -216,6 +217,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.open_dialog = Gtk.FileDialog(title="Select a File")
         self.video_file_data = list()
+
+    def file_added_handler(self, instance, filename):
+        print(f'MainWindow:file_added_handler: {filename}')
 
     def on_load_video_json(self, _widget):
         self.open_dialog.open(self, None, self.open_dialog_open_callback)
