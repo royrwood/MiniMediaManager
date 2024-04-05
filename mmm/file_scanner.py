@@ -15,16 +15,6 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, Gio, GObject, Gdk, GLib
 
 
-# class FileScannerSignals(GObject.Object):
-#     @GObject.Signal(arg_types=(str,))
-#     def file_added(self, *args):
-#         pass
-#
-#     # @GObject.Signal
-#     # def noarg_signal(self):
-#     #     print("noarg_signal")
-
-
 @dataclasses.dataclass
 class VideoFile:
     file_path: Text = ''
