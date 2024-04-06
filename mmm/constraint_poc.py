@@ -4,18 +4,15 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, Gio, GObject, GLib
 
 
-class SimpleGrid(Gtk.Widget):
+class ConstraintLayoutDemo(Gtk.Widget):
     def __init__(self):
         super().__init__()
-
-        # foo = self.get_layout_manager_type()
-        # layout_manager: Gtk.ConstraintLayout = self.get_layout_manager()
-        # self.set_layout_manager_type(Gtk.ConstraintLayout)
 
         self.constraint_layout_manager = Gtk.ConstraintLayout()
         self.set_layout_manager(self.constraint_layout_manager)
 
-        self.left_constraint_guide = Gtk.ConstraintGuide(name='leftGuide', min_width=10, max_width=2000, min_height=10, max_height=2000, nat_width=200, nat_height=100, strength=Gtk.ConstraintStrength.STRONG)
+        # self.left_constraint_guide = Gtk.ConstraintGuide(name='leftGuide', min_width=10, max_width=2000, min_height=10, max_height=2000, nat_width=200, nat_height=100, strength=Gtk.ConstraintStrength.STRONG)
+        self.left_constraint_guide = Gtk.ConstraintGuide(name='leftGuide', strength=Gtk.ConstraintStrength.STRONG)
         self.constraint_layout_manager.add_guide(self.left_constraint_guide)
 
         self.button_1 = Gtk.Button(label='Button 1')
@@ -53,15 +50,3 @@ class SimpleGrid(Gtk.Widget):
         #                                                           "button2", self->button2,
         #                                                           "button3", self->button3,
         #                                                           NULL);
-
-    # def build_constraints(self, layout_manager):
-    #     constraint_guide = Gtk.ConstraintGuide()
-    #     constraint_guide.set_name('space')
-    #     constraint_guide.set_min_size(10, 10)
-    #     constraint_guide.set_nat_size(100, 10)
-    #     constraint_guide.set_max_size(200, 20)
-    #     constraint_guide.set_strength(Gtk.ConstraintStrength.STRONG)
-    #     layout_manager.add_guide(constraint_guide)
-    #
-    #     constraint_constant = Gtk.Constraint(target=self.button_1, target_attribute=Gtk.ConstraintAttribute.WIDTH, relation=Gtk.ConstraintRelation.EQ, constant=200.0, strength=Gtk.ConstraintStrength.REQUIRED)
-    #     layout_manager.add_constraint(constraint_constant)

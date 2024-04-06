@@ -7,7 +7,7 @@ from gi.repository import Gtk, Gio, GObject, Gdk, GLib
 
 from mmm.file_scanner import FileScannerPanel
 from mmm.file_browser import FileBrowserPanel
-from mmm.constraint_poc import SimpleGrid
+from mmm.constraint_poc import ConstraintLayoutDemo
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -19,12 +19,12 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.file_browser_panel = FileBrowserPanel()
 
-        self.simple_grid = SimpleGrid()
+        self.simple_grid = ConstraintLayoutDemo()
 
         self.notebook = Gtk.Notebook(margin_top=10, margin_bottom=10, margin_start=10, margin_end=10)
         self.notebook.append_page(self.file_browser_panel, Gtk.Label(label='Files'))
         self.notebook.append_page(self.file_scanner_panel, Gtk.Label(label='Scanning'))
-        self.notebook.append_page(self.simple_grid, Gtk.Label(label='SimpleGrid'))
+        self.notebook.append_page(self.simple_grid, Gtk.Label(label='ConstraintLayout'))
         self.set_child(self.notebook)
 
     def file_added_handler(self, _signal_factory, filename):
