@@ -16,6 +16,7 @@ class MainWindow(Gtk.ApplicationWindow):
 
         self.file_scanner_panel = FileScannerPanel()
         self.file_scanner_panel.connect('file_added', self.file_added_handler)
+        self.file_scanner_panel.connect('file_scanning_complete', self.file_scanning_complete_handler)
 
         self.file_browser_panel = FileBrowserPanel()
 
@@ -29,6 +30,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def file_added_handler(self, _signal_factory, filename):
         print(f'MainWindow:file_added_handler: {filename}')
+
+    def file_scanning_complete_handler(self, _signal_factory, dirname):
+        print(f'MainWindow:file_scanning_complete_handler: {dirname}')
 
 
 class MyApp(Gtk.Application):
@@ -46,5 +50,5 @@ class MyApp(Gtk.Application):
 
 
 if __name__ == '__main__':
-    app = MyApp(application_id="com.example.gtk4.columnview", flags=Gio.ApplicationFlags.FLAGS_NONE)
+    app = MyApp(application_id="com.mmm.mini_media_manager", flags=Gio.ApplicationFlags.FLAGS_NONE)
     app.run(sys.argv)

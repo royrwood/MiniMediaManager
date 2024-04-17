@@ -8,7 +8,7 @@ from gi.repository import Gtk, Gio, GObject, GLib
 from mmm.file_scanner import VideoFile, load_video_file_data
 
 
-class MyListModelDataItem(GObject.Object):
+class FileBrowserListModelDataItem(GObject.Object):
     # __gtype_name__ = "MyListModelDataItem"
 
     def __init__(self, title, year, rating, imdb_tt):
@@ -20,7 +20,7 @@ class MyListModelDataItem(GObject.Object):
         self.imdb_tt = imdb_tt
 
 
-class MyItemFactory(Gtk.SignalListItemFactory):
+class FileBrowserItemFactory(Gtk.SignalListItemFactory):
     def __init__(self, field_name):
         super().__init__()
         self._field_name = field_name
@@ -53,10 +53,10 @@ class FileBrowserPanel(Gtk.Box):
         self.single_selection_list_store.connect("notify::selected", self.on_item_list_selected)
         self.column_view = Gtk.ColumnView(model=self.single_selection_list_store, hexpand=True, vexpand=True)
         self.column_view.set_show_row_separators(True)
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='TITLE', factory=MyItemFactory('title'), expand=True))
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='YEAR', factory=MyItemFactory('year'), expand=True))
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='RATING', factory=MyItemFactory('rating'), expand=True))
-        self.column_view.append_column(Gtk.ColumnViewColumn(title='IMDB TT', factory=MyItemFactory('imdb_tt'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='TITLE', factory=FileBrowserItemFactory('title'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='YEAR', factory=FileBrowserItemFactory('year'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='RATING', factory=FileBrowserItemFactory('rating'), expand=True))
+        self.column_view.append_column(Gtk.ColumnViewColumn(title='IMDB TT', factory=FileBrowserItemFactory('imdb_tt'), expand=True))
 
         self.column_view_scrolled_window = Gtk.ScrolledWindow.new()
         self.column_view_scrolled_window.set_child(self.column_view)
@@ -102,7 +102,7 @@ class FileBrowserPanel(Gtk.Box):
                             file_year = video_file.imdb_year or video_file.scrubbed_file_year
                             imdb_rating = video_file.imdb_rating
                             imdb_tt = video_file.imdb_tt
-                            self.list_store_model.append(MyListModelDataItem(file_name, file_year, imdb_rating, imdb_tt))
+                            self.list_store_model.append(FileBrowserListModelDataItem(file_name, file_year, imdb_rating, imdb_tt))
             except GLib.Error as error:
                 print(f"Error opening file: {error.message}")
 

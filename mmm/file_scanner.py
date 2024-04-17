@@ -42,7 +42,7 @@ def load_video_file_data(video_file_path: str) -> List[VideoFile]:
 
 
 class FolderScanWorker(Thread):
-    def __init__(self, folder_path: Text, ignore_extensions: Text = None, filename_metadata_tokens: Text = None, progress_callback: Callable = None):
+    def __init__(self, folder_path: Text, ignore_extensions: Text = None, filename_metadata_tokens: Text = None, progress_callback: Callable = None, complete_callback: Callable = None):
         super().__init__(daemon=True)
         self.folder_data = None
         self.ignore_extensions = ignore_extensions or 'png,jpg,nfo,srt'
@@ -50,6 +50,7 @@ class FolderScanWorker(Thread):
         self.folder_path = folder_path
         self.keep_scanning = True
         self.progress_callback = progress_callback
+        self.complete_callback = complete_callback
 
     def stop_scanning(self):
         self.keep_scanning = False
@@ -119,12 +120,16 @@ class FolderScanWorker(Thread):
 
         print(f'FolderScanWorker: End processing directory "{self.folder_path}"')
 
+        if self.complete_callback:
+            print(f'FolderScanWorker: Scheduling self.complete_callback')
+            GLib.idle_add(self.complete_callback, self.folder_path)
+
 
 class FileScannerPanel(Gtk.Box):
     def __init__(self, *args, **kwargs):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=10, vexpand=True, hexpand=True, margin_top=10, margin_bottom=10, margin_start=10, margin_end=10, *args, **kwargs)
 
-        self.file_scanning_thread = FolderScanWorker(folder_path='/home/rrwood/Downloads/ZZ_Movies_Copied_To_External/', progress_callback=self.on_scanning_progress)
+        self.file_scanning_thread = FolderScanWorker(folder_path='/home/rrwood/Downloads/ZZ_Movies_Copied_To_External/', progress_callback=self.on_scanning_progress, complete_callback=self.on_scanning_complete)
         # thread.start()
 
         self.progress_log_text_buffer = Gtk.TextBuffer()
@@ -149,6 +154,10 @@ class FileScannerPanel(Gtk.Box):
 
     @GObject.Signal(arg_types=(str,))
     def file_added(self, *args):
+        pass
+
+    @GObject.Signal(arg_types=(str,))
+    def file_scanning_complete(self, *args):
         pass
 
     def on_start_scanning(self, _widget):
@@ -184,3 +193,8 @@ class FileScannerPanel(Gtk.Box):
             self.progress_log_text_view.scroll_to_mark(self.text_buffer_mark_end, 0, False, 0, 0)
 
         pass
+
+    def on_scanning_complete(self, message):
+        print(f'on_scanning_complete: {message}')
+
+        self.emit('file_scanning_complete', message)
