@@ -1,3 +1,6 @@
+# Installation:
+# https://pygobject.gnome.org/getting_started.html#ubuntu-getting-started
+
 import sys
 
 import gi
